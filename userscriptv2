@@ -1,0 +1,689 @@
+// ==UserScript==
+// @name         Nối Từ Helper 🇻🇳
+// @namespace    http://tampermonkey.net/
+// @version      2.0
+// @description  Bôi đen từ → gợi ý từ nối tiếng Việt. Tự học từ mới, xuất/nhập JSON.
+// @author       Claude
+// @match        *://*/*
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_registerMenuCommand
+// ==/UserScript==
+
+(function () {
+  'use strict';
+
+  // =============================================
+  // TỪ ĐIỂN GỐC (built-in, không bao giờ bị xóa)
+  // =============================================
+  const BUILTIN = {
+    "an": ["an bình", "an khang", "an lành", "an ninh", "an toàn", "an ủi", "an vui", "an phận", "an nhàn", "an tâm"],
+    "bình": ["bình an", "bình dân", "bình dị", "bình hòa", "bình minh", "bình ổn", "bình tâm", "bình thản", "bình thường", "bình yên"],
+    "cao": ["cao cả", "cao cấp", "cao điểm", "cao đẳng", "cao lớn", "cao nguyên", "cao quý", "cao siêu", "cao thượng", "cao vọng"],
+    "chân": ["chân chất", "chân chính", "chân lý", "chân thành", "chân thật", "chân tình", "chân trời", "chân dung", "chân thực"],
+    "cuộc": ["cuộc đời", "cuộc sống", "cuộc chiến", "cuộc hành trình", "cuộc họp", "cuộc thi", "cuộc vui"],
+    "dân": ["dân chủ", "dân gian", "dân số", "dân tộc", "dân tình", "dân trí", "dân sinh"],
+    "đất": ["đất nước", "đất đai", "đất trời", "đất liền", "đất mẹ"],
+    "đẹp": ["đẹp đẽ", "đẹp lòng", "đẹp trai", "đẹp mắt"],
+    "đời": ["đời sống", "đời người", "đời thường", "đời thực"],
+    "gia": ["gia đình", "gia tài", "gia tộc", "gia nhân", "gia sản", "gia vị"],
+    "giáo": ["giáo dục", "giáo viên", "giáo lý", "giáo sư", "giáo án"],
+    "hạnh": ["hạnh phúc", "hạnh kiểm", "hạnh ngộ"],
+    "hoa": ["hoa hồng", "hoa lá", "hoa quả", "hoa văn", "hoa mỹ", "hoa tiêu"],
+    "hòa": ["hòa bình", "hòa giải", "hòa hợp", "hòa nhã", "hòa thuận", "hòa tan"],
+    "hồng": ["hồng nhan", "hồng phúc"],
+    "học": ["học hành", "học sinh", "học viên", "học vấn", "học thuật", "học kỳ"],
+    "hữu": ["hữu ích", "hữu nghị", "hữu hiệu", "hữu duyên", "hữu tình"],
+    "không": ["không gian", "không khí", "không trung", "không thời gian"],
+    "kinh": ["kinh doanh", "kinh nghiệm", "kinh tế", "kinh đô", "kinh điển", "kinh ngạc"],
+    "lý": ["lý luận", "lý tưởng", "lý trí", "lý thuyết", "lý do", "lý lẽ"],
+    "lành": ["lành mạnh", "lành nghề", "lành lặn"],
+    "mạnh": ["mạnh mẽ", "mạnh khỏe", "mạnh dạn"],
+    "minh": ["minh bạch", "minh mẫn", "minh oan", "minh chứng", "minh triết"],
+    "nước": ["nước nhà", "nước non", "nước ngoài"],
+    "nhân": ["nhân dân", "nhân loại", "nhân sinh", "nhân tài", "nhân từ", "nhân vật", "nhân quả", "nhân nghĩa"],
+    "nghĩa": ["nghĩa vụ", "nghĩa khí", "nghĩa hiệp", "nghĩa tình", "nghĩa địa"],
+    "phong": ["phong phú", "phong trào", "phong cách", "phong tục", "phong kiến", "phong ba"],
+    "phúc": ["phúc lợi", "phúc đức", "phúc thần"],
+    "quê": ["quê hương", "quê nhà"],
+    "sáng": ["sáng tạo", "sáng suốt", "sáng kiến", "sáng lập", "sáng ngời", "sáng tác"],
+    "sinh": ["sinh hoạt", "sinh viên", "sinh động", "sinh thái", "sinh sống", "sinh lực"],
+    "tài": ["tài năng", "tài nguyên", "tài sản", "tài trợ", "tài hoa", "tài giỏi"],
+    "tâm": ["tâm hồn", "tâm lý", "tâm linh", "tâm tư", "tâm trí", "tâm thần"],
+    "tình": ["tình bạn", "tình cảm", "tình đoàn kết", "tình huống", "tình nghĩa", "tình yêu"],
+    "toàn": ["toàn cầu", "toàn diện", "toàn thể", "toàn vẹn"],
+    "tốt": ["tốt bụng", "tốt đẹp", "tốt lành", "tốt nghiệp"],
+    "trí": ["trí tuệ", "trí thức", "trí lực", "trí nhớ", "trí tưởng tượng"],
+    "trung": ["trung thành", "trung thực", "trung tâm", "trung bình", "trung kiên", "trung hòa"],
+    "tự": ["tự do", "tự lập", "tự nhiên", "tự tin", "tự trọng", "tự hào"],
+    "văn": ["văn hóa", "văn học", "văn minh", "văn phong", "văn nghệ", "văn chương"],
+    "vui": ["vui lòng", "vui mừng", "vui tươi", "vui vẻ", "vui sướng"],
+    "xã": ["xã hội", "xã giao"],
+    "yêu": ["yêu cầu", "yêu thương", "yêu đời", "yêu nước", "yêu mến", "yêu quý"],
+    "thiên": ["thiên nhiên", "thiên tài", "thiên đường", "thiên lý", "thiên hà", "thiên hướng"],
+    "thành": ["thành công", "thành thật", "thành tích", "thành viên", "thành phố", "thành thạo"],
+    "thế": ["thế giới", "thế hệ", "thế lực", "thế kỷ"],
+    "quốc": ["quốc gia", "quốc tế", "quốc kỳ", "quốc hội", "quốc phòng"],
+    "lực": ["lực lượng", "lực sĩ"],
+    "quan": ["quan hệ", "quan tâm", "quan trọng", "quan sát", "quan điểm"],
+    "sức": ["sức mạnh", "sức khỏe", "sức sống", "sức lực", "sức bền"],
+    "bền": ["bền vững", "bền bỉ", "bền chặt"],
+    "vững": ["vững chắc", "vững mạnh", "vững bền", "vững tâm"],
+    "hiền": ["hiền hòa", "hiền lành", "hiền tài", "hiền triết"],
+    "tổ": ["tổ quốc", "tổ tiên", "tổ chức", "tổ ấm"],
+    "ấm": ["ấm áp", "ấm cúng", "ấm no"],
+    "áp": ["áp lực", "áp dụng", "áp đảo"],
+    "thể": ["thể hiện", "thể lực", "thể thao", "thể chế", "thể loại"],
+    "tươi": ["tươi sáng", "tươi mới", "tươi trẻ", "tươi vui"],
+    "bạn": ["bạn bè", "bạn đồng hành", "bạn học", "bạn thân"],
+    "đoàn": ["đoàn kết", "đoàn thể", "đoàn viên"],
+    "kết": ["kết quả", "kết hợp", "kết thúc", "kết nối", "kết hôn"],
+    "quyết": ["quyết tâm", "quyết định", "quyết liệt", "quyết thắng"],
+    "định": ["định hướng", "định nghĩa", "định kiến"],
+    "hướng": ["hướng dẫn", "hướng đi", "hướng tới"],
+    "tiên": ["tiên phong", "tiên tiến", "tiên đoán"],
+    "tiến": ["tiến bộ", "tiến hóa", "tiến lên", "tiến sĩ"],
+    "hóa": ["hóa học", "hóa chất", "hóa thân"],
+    "chất": ["chất lượng", "chất liệu", "chất thải"],
+    "pháp": ["pháp luật", "pháp lý", "pháp quyền"],
+    "luật": ["luật pháp", "luật sư", "luật lệ"],
+    "phụ": ["phụ nữ", "phụ huynh", "phụ thuộc"],
+    "nữ": ["nữ sinh", "nữ hoàng", "nữ quyền"],
+    "hoàng": ["hoàng gia", "hoàng đế", "hoàng hôn", "hoàng kim"],
+    "người": ["người thân", "người lớn", "người dân"],
+    "thân": ["thân thiện", "thân mật", "thân yêu"],
+    "thiện": ["thiện chí", "thiện cảm", "thiện lương", "thiện tâm"],
+    "khí": ["khí hậu", "khí phách", "khí chất"],
+    "phương": ["phương tiện", "phương pháp", "phương án"],
+    "tiện": ["tiện lợi", "tiện nghi", "tiện ích"],
+    "lợi": ["lợi ích", "lợi thế", "lợi nhuận"],
+    "kỷ": ["kỷ niệm", "kỷ luật", "kỷ nguyên"],
+    "nguyên": ["nguyên lý", "nguyên tắc", "nguyên liệu", "nguyên nhân"],
+    "vật": ["vật chất", "vật lý", "vật liệu"],
+    "năng": ["năng lượng", "năng động", "năng suất", "năng lực"],
+    "động": ["động lực", "động viên", "động đất", "động cơ"],
+    "chức": ["chức vụ", "chức năng", "chức danh"],
+    "kỳ": ["kỳ diệu", "kỳ lạ", "kỳ tích", "kỳ vọng"],
+    "tích": ["tích cực", "tích lũy"],
+    "đại": ["đại học", "đại diện", "đại dương", "đại hội"],
+    "tính": ["tính cách", "tính toán", "tính khí"],
+    "cách": ["cách mạng", "cách thức"],
+    "mạng": ["mạng lưới", "mạng sống"],
+    "cơ": ["cơ bản", "cơ hội", "cơ sở", "cơ thể", "cơ cấu"],
+    "bản": ["bản thân", "bản năng", "bản sắc", "bản lĩnh"],
+    "thầy": ["thầy giáo", "thầy thuốc", "thầy cô"],
+    "say": ["say mê", "say sưa"],
+    "mê": ["mê hoặc", "mê ly", "mê đắm"],
+    "hội": ["hội nghị", "hội tụ", "hội nhập", "hội thảo"],
+    "nghị": ["nghị quyết", "nghị viện", "nghị luận"],
+    "tưởng": ["tưởng nhớ", "tưởng tượng", "tưởng thưởng"],
+    "dũng": ["dũng cảm", "dũng sĩ", "dũng khí"],
+    "cảm": ["cảm ơn", "cảm xúc", "cảm nhận", "cảm giác"],
+    "điều": ["điều chỉnh", "điều hành", "điều kiện"],
+    "sự": ["sự thật", "sự kiện", "sự nghiệp"],
+    "thật": ["thật lòng", "thật sự", "thật tình"],
+    "thời": ["thời gian", "thời đại", "thời kỳ", "thời cơ"],
+    "chiến": ["chiến đấu", "chiến lược", "chiến thắng", "chiến tranh"],
+    "tranh": ["tranh đấu", "tranh luận", "tranh giành"],
+    "luận": ["luận điểm", "luận văn", "luận cứ"],
+    "hệ": ["hệ thống", "hệ quả", "hệ lụy"],
+    "thống": ["thống nhất", "thống trị", "thống kê"],
+    "tiêu": ["tiêu chuẩn", "tiêu biểu", "tiêu chí"],
+    "đạo": ["đạo đức", "đạo lý"],
+    "đức": ["đức hạnh", "đức tính", "đức độ"],
+    "trị": ["trị an", "trị bệnh"],
+    "bệnh": ["bệnh nhân", "bệnh viện", "bệnh tật"],
+    "giải": ["giải quyết", "giải thích", "giải phóng"],
+    "thích": ["thích thú", "thích nghi"],
+    "vị": ["vị trí", "vị thế", "vị tha"],
+    "dự": ["dự án", "dự tính", "dự đoán"],
+    "thương": ["thương yêu", "thương mại", "thương nhân"],
+    "nguồn": ["nguồn gốc", "nguồn lực"],
+    "trẻ": ["trẻ em", "trẻ trung", "trẻ thơ"],
+    "xinh": ["xinh đẹp", "xinh xắn", "xinh tươi"],
+    "hợp": ["hợp lý", "hợp tác", "hợp nhất"],
+    "tác": ["tác dụng", "tác phẩm", "tác giả"],
+    "phục": ["phục vụ", "phục hồi", "phục tùng"],
+    "hồi": ["hồi phục", "hồi ký", "hồi sinh"],
+    "thuyết": ["thuyết phục", "thuyết trình"],
+    "nhà": ["nhà trường", "nhà nước", "nhà văn"],
+    "trường": ["trường học", "trường thành", "trường hợp"],
+    "linh": ["linh hoạt", "linh thiêng", "linh hồn"],
+    "hoạt": ["hoạt động", "hoạt bát"],
+    "đường": ["đường lối", "đường đời"],
+    "quý": ["quý giá", "quý báu", "quý trọng"],
+    "trọng": ["trọng đại", "trọng trách", "trọng lượng"],
+    "nhiệm": ["nhiệm vụ", "nhiệm kỳ"],
+    "phòng": ["phòng thủ", "phòng ngừa"],
+    "trưởng": ["trưởng thành", "trưởng phòng"],
+    "lòng": ["lòng tốt", "lòng dũng cảm", "lòng nhân"],
+    "thắng": ["thắng lợi", "thắng trận"],
+    "lập": ["lập nghiệp", "lập kế hoạch", "lập trình"],
+    "trình": ["trình bày", "trình độ", "trình tự"],
+    "độ": ["độ lượng", "độ cao", "độ chính xác"],
+    "nhận": ["nhận thức", "nhận ra", "nhận biết"],
+    "biết": ["biết ơn", "biết điều"],
+    "sống": ["sống động", "sống còn", "sống lâu"],
+    "chế": ["chế độ", "chế tạo", "chế biến"],
+    "tạo": ["tạo dựng", "tạo nên", "tạo ra"],
+    "xây": ["xây dựng", "xây nền"],
+    "cấp": ["cấp bậc", "cấp cao", "cấp thiết"],
+    "bộ": ["bộ môn", "bộ trưởng", "bộ sưu tập"],
+    "môn": ["môn học", "môn thể thao"],
+    "sĩ": ["sĩ khí", "sĩ số", "sĩ diện"],
+    "nguy": ["nguy hiểm", "nguy cấp", "nguy nan"],
+    "cực": ["cực kỳ", "cực đại", "cực điểm"],
+    "hậu": ["hậu quả", "hậu phương", "hậu duệ"],
+    "mặt": ["mặt trận", "mặt trời", "mặt trăng"],
+    "trận": ["trận chiến", "trận đấu"],
+    "chung": ["chung sống", "chung tay", "chung thủy"],
+    "thủy": ["thủy chung", "thủy triều"],
+    "kim": ["kim cương", "kim loại"],
+    "đỉnh": ["đỉnh cao", "đỉnh điểm"],
+    "dài": ["dài lâu", "dài hạn"],
+    "lâu": ["lâu dài", "lâu bền"],
+    "hạn": ["hạn chế", "hạn mức"],
+    "bài": ["bài học", "bài thi", "bài tập"],
+    "thi": ["thi cử", "thi đua", "thi đấu"],
+    "chỉ": ["chỉ đạo", "chỉ huy", "chỉ số"],
+    "huy": ["huy hoàng", "huy chương"],
+    "thuật": ["thuật ngữ", "thuật toán"],
+    "toán": ["toán học"],
+    "nhớ": ["nhớ nhung", "nhớ mãi"],
+    "thưởng": ["thưởng thức", "thưởng ngoạn"],
+    "tỉnh": ["tỉnh thức", "tỉnh táo", "tỉnh ngộ"],
+    "bạo": ["bạo lực", "bạo dạn"],
+    "hiểm": ["hiểm nguy", "hiểm ác"],
+    "nan": ["nan giải", "nan y"],
+    "thú": ["thú vị"],
+    "tha": ["tha thứ", "tha hương"],
+    "lịch": ["lịch sự", "lịch thiệp"],
+    "tội": ["tội lỗi", "tội phạm", "tội nghiệp"],
+    "lầm": ["lầm lỗi", "lầm tưởng"],
+    "gian": ["gian khổ", "gian nan"],
+    "tuệ": ["tuệ giác"],
+    "giác": ["giác quan", "giác ngộ"],
+    "nhất": ["nhất quán", "nhất định", "nhất trí"],
+    "chuẩn": ["chuẩn mực", "chuẩn bị"],
+    "trước": ["trước tiên", "trước đây"],
+    "ngày": ["ngày mai", "ngày xưa", "ngày nay"],
+    "cùng": ["cùng nhau", "cùng chung"],
+    "triều": ["triều đại", "triều đình"],
+    "loại": ["loại bỏ", "loại hình"],
+    "nơi": ["nơi đây", "nơi ấy"],
+    "tay": ["tay nghề", "tay chân"],
+    "nghề": ["nghề nghiệp"],
+    "cứu": ["cứu vớt", "cứu giúp", "cứu trợ"],
+    "trợ": ["trợ cấp", "trợ giúp"],
+    "diện": ["diện mạo", "diện tích"],
+    "lối": ["lối sống", "lối đi"],
+    "lên": ["lên đỉnh", "lên cao"],
+    "báu": ["báu vật"],
+    "trách": ["trách nhiệm"],
+    "đấu": ["đấu tranh", "đấu trí"],
+    "tụ": ["tụ họp", "tụ tập"],
+  };
+
+  // =============================================
+  // QUẢN LÝ TỪ ĐIỂN MỞ RỘNG
+  // =============================================
+  const STORAGE_KEY = 'noitu_custom_dict_v2';
+
+  function loadCustomDict() {
+    try {
+      const raw = GM_getValue(STORAGE_KEY, '{}');
+      return JSON.parse(raw);
+    } catch (e) { return {}; }
+  }
+
+  function saveCustomDict(dict) {
+    GM_setValue(STORAGE_KEY, JSON.stringify(dict));
+  }
+
+  function getMergedDict() {
+    const custom = loadCustomDict();
+    const merged = {};
+    for (const [k, v] of Object.entries(BUILTIN)) merged[k] = [...v];
+    for (const [k, v] of Object.entries(custom)) {
+      if (!merged[k]) merged[k] = [];
+      for (const word of v) {
+        if (!merged[k].includes(word)) merged[k].push(word);
+      }
+    }
+    return merged;
+  }
+
+  function learnWord(key, newWord) {
+    key = key.toLowerCase().trim();
+    newWord = newWord.toLowerCase().trim();
+    if (!key || !newWord || newWord.split(' ').length < 2) return 'invalid';
+    const custom = loadCustomDict();
+    if (!custom[key]) custom[key] = [];
+    if (custom[key].includes(newWord)) return 'dup';
+    if (BUILTIN[key] && BUILTIN[key].includes(newWord)) return 'dup';
+    custom[key].push(newWord);
+    saveCustomDict(custom);
+    return 'ok';
+  }
+
+  function forgetWord(key, word) {
+    const custom = loadCustomDict();
+    if (!custom[key]) return;
+    custom[key] = custom[key].filter(w => w !== word);
+    if (custom[key].length === 0) delete custom[key];
+    saveCustomDict(custom);
+  }
+
+  function exportDict() {
+    const custom = loadCustomDict();
+    const blob = new Blob([JSON.stringify(custom, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'noitu-custom-dict.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importDict(jsonStr) {
+    try {
+      const imported = JSON.parse(jsonStr);
+      const custom = loadCustomDict();
+      let count = 0;
+      for (const [k, v] of Object.entries(imported)) {
+        if (!Array.isArray(v)) continue;
+        if (!custom[k]) custom[k] = [];
+        for (const word of v) {
+          if (!custom[k].includes(word)) { custom[k].push(word); count++; }
+        }
+      }
+      saveCustomDict(custom);
+      return count;
+    } catch (e) { return -1; }
+  }
+
+  function countCustomWords() {
+    return Object.values(loadCustomDict()).reduce((a, b) => a + b.length, 0);
+  }
+
+  // =============================================
+  // UTILS
+  // =============================================
+  function removeAccents(str) {
+    return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/Đ/g, "D").toLowerCase();
+  }
+
+  function getLastWord(phrase) {
+    const words = phrase.trim().split(/\s+/);
+    return words[words.length - 1].toLowerCase();
+  }
+
+  function getSuggestions(lastWord) {
+    const dict = getMergedDict();
+    const key = lastWord.toLowerCase();
+    // Chỉ match chính xác — tiếng Việt khác dấu là khác nghĩa hoàn toàn
+    if (dict[key]) return { words: dict[key], key };
+    return { words: [], key };
+  }
+
+  // =============================================
+  // POPUP
+  // =============================================
+  const C = {
+    bg: '#0f0f1a', border: '#e94560', accent: '#e94560',
+    text: '#e0e0ff', muted: '#555a7a', green: '#00d084',
+    divider: '#1e1e35', hov: '#e9456012',
+  };
+
+  let popup = null;
+  let currentLastWord = '';
+  let currentKey = '';
+
+  function createPopup() {
+    const el = document.createElement('div');
+    el.id = '__noitu__';
+    el.style.cssText = `
+      position:fixed;z-index:2147483647;
+      background:${C.bg};border:1.5px solid ${C.border};border-radius:13px;
+      min-width:240px;max-width:350px;
+      box-shadow:0 12px 44px rgba(233,69,96,0.22),0 2px 10px rgba(0,0,0,0.5);
+      font-family:'Segoe UI',Arial,sans-serif;font-size:13px;
+      display:none;pointer-events:auto;overflow:hidden;
+    `;
+    document.body.appendChild(el);
+    return el;
+  }
+
+  function renderPopup(lastWord, result) {
+    if (!popup) popup = createPopup();
+    currentLastWord = lastWord;
+    currentKey = result.key || lastWord;
+
+    const custom = loadCustomDict();
+    const customWords = custom[currentKey] || [];
+
+    popup.innerHTML = '';
+
+    // Header
+    const hd = document.createElement('div');
+    hd.style.cssText = `background:${C.border}14;padding:9px 14px 8px;border-bottom:1px solid ${C.border}30;display:flex;align-items:center;justify-content:space-between;gap:8px;`;
+
+    const hdLeft = document.createElement('span');
+    hdLeft.style.cssText = `color:${C.accent};font-weight:800;font-size:11px;letter-spacing:.8px;text-transform:uppercase;`;
+    hdLeft.innerHTML = `🔗 Sau &ldquo;<span style="color:#fff;font-size:12px;">${currentKey}</span>&rdquo;`;
+
+    const hdRight = document.createElement('div');
+    hdRight.style.cssText = `display:flex;align-items:center;gap:6px;`;
+
+    // Nút học từ đang bôi đen
+    const selectedText = window.getSelection().toString().trim().toLowerCase();
+    const canLearn = selectedText && selectedText.split(/\s+/).length >= 2;
+    if (canLearn) {
+      const learnSelBtn = document.createElement('button');
+      learnSelBtn.textContent = `📥 Học "${selectedText}"`;
+      learnSelBtn.title = 'Học từ đang bôi đen';
+      learnSelBtn.style.cssText = `
+        background:${C.green}22;color:${C.green};border:1px solid ${C.green}55;
+        border-radius:6px;padding:3px 8px;font-size:10px;font-weight:700;
+        cursor:pointer;font-family:inherit;white-space:nowrap;transition:background .15s;
+      `;
+      learnSelBtn.onmouseenter = () => learnSelBtn.style.background = `${C.green}40`;
+      learnSelBtn.onmouseleave = () => learnSelBtn.style.background = `${C.green}22`;
+      learnSelBtn.onclick = (e) => {
+        e.stopPropagation();
+        const firstWord = selectedText.split(/\s+/)[0];
+        const res = learnWord(firstWord, selectedText);
+        if (res === 'ok') {
+          learnSelBtn.textContent = '✅ Đã học!';
+          learnSelBtn.style.background = `${C.green}40`;
+          setTimeout(() => renderPopup(currentLastWord, getSuggestions(currentLastWord)), 700);
+        } else if (res === 'dup') {
+          learnSelBtn.textContent = '⚠️ Đã có!';
+          setTimeout(() => renderPopup(currentLastWord, getSuggestions(currentLastWord)), 700);
+        }
+      };
+      hdRight.appendChild(learnSelBtn);
+    }
+
+    const hdCount = document.createElement('span');
+    hdCount.style.cssText = `color:${C.muted};font-size:10px;white-space:nowrap;`;
+    hdCount.textContent = `${result.words.length} gợi ý`;
+    hdRight.appendChild(hdCount);
+
+    hd.appendChild(hdLeft);
+    hd.appendChild(hdRight);
+    popup.appendChild(hd);
+
+    // List
+    // Inject custom scrollbar CSS nếu chưa có
+    if (!document.getElementById('__noitu_style__')) {
+      const style = document.createElement('style');
+      style.id = '__noitu_style__';
+      style.textContent = `
+        #__noitu__ .noitu-list::-webkit-scrollbar { width: 3px; }
+        #__noitu__ .noitu-list::-webkit-scrollbar-track { background: transparent; }
+        #__noitu__ .noitu-list::-webkit-scrollbar-thumb { background: #e9456055; border-radius: 99px; }
+        #__noitu__ .noitu-list::-webkit-scrollbar-thumb:hover { background: #e94560bb; }
+      `;
+      document.head.appendChild(style);
+    }
+
+    const list = document.createElement('div');
+    list.className = 'noitu-list';
+    list.style.cssText = `padding:6px 8px;max-height:190px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#e9456055 transparent;`;
+
+    if (result.words.length === 0) {
+      list.innerHTML = `<div style="color:${C.muted};font-style:italic;padding:8px 6px;font-size:12px;">Chưa có từ nào — dạy tôi bên dưới! 👇</div>`;
+    } else {
+      result.words.forEach(word => {
+        const isCustom = customWords.includes(word);
+        const row = document.createElement('div');
+        row.style.cssText = `display:flex;align-items:center;justify-content:space-between;gap:6px;padding:5px 8px;border-radius:7px;cursor:pointer;transition:background .1s;`;
+
+        const lbl = document.createElement('span');
+        lbl.textContent = word;
+        lbl.style.cssText = isCustom ? `color:${C.green};font-weight:600;` : `color:${C.text};`;
+
+        const acts = document.createElement('span');
+        acts.style.cssText = `display:flex;gap:3px;opacity:0;transition:opacity .1s;font-size:13px;`;
+
+        // Copy btn
+        const copyBtn = document.createElement('span');
+        copyBtn.title = 'Copy';
+        copyBtn.textContent = '📋';
+        copyBtn.style.cursor = 'pointer';
+        copyBtn.onclick = (e) => {
+          e.stopPropagation();
+          navigator.clipboard.writeText(word).catch(() => {});
+          copyBtn.textContent = '✅';
+          setTimeout(() => copyBtn.textContent = '📋', 700);
+        };
+        acts.appendChild(copyBtn);
+
+        // Delete btn (chỉ custom)
+        if (isCustom) {
+          const delBtn = document.createElement('span');
+          delBtn.title = 'Xóa';
+          delBtn.textContent = '🗑';
+          delBtn.style.cursor = 'pointer';
+          delBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (confirm(`Xóa "${word}" khỏi từ điển?`)) {
+              forgetWord(currentKey, word);
+              renderPopup(currentLastWord, getSuggestions(currentLastWord));
+            }
+          };
+          acts.appendChild(delBtn);
+        }
+
+        row.appendChild(lbl);
+        row.appendChild(acts);
+
+        row.onmouseenter = () => { row.style.background = C.hov; acts.style.opacity = '1'; };
+        row.onmouseleave = () => { row.style.background = 'transparent'; acts.style.opacity = '0'; };
+        row.onclick = () => {
+          navigator.clipboard.writeText(word).catch(() => {});
+          row.style.background = `${C.green}18`;
+          setTimeout(() => row.style.background = 'transparent', 500);
+        };
+
+        list.appendChild(row);
+      });
+    }
+    popup.appendChild(list);
+
+    // Learn section
+    const learn = document.createElement('div');
+    learn.style.cssText = `border-top:1px solid ${C.divider};padding:8px 10px 10px;background:#12122080;`;
+
+    const lbl = document.createElement('div');
+    lbl.style.cssText = `color:${C.muted};font-size:10px;margin-bottom:5px;`;
+    lbl.textContent = `➕ Dạy từ mới sau "${currentKey}"`;
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:6px;';
+
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.placeholder = 'vd: bình an, bình minh...';
+    inp.style.cssText = `
+      flex:1;background:#0a0a18;border:1px solid ${C.divider};border-radius:7px;
+      color:${C.text};padding:5px 9px;font-size:12px;outline:none;font-family:inherit;
+      transition:border-color .15s;
+    `;
+    inp.onfocus = () => inp.style.borderColor = C.accent;
+    inp.onblur = () => inp.style.borderColor = C.divider;
+
+    const btn = document.createElement('button');
+    btn.textContent = 'Học';
+    btn.style.cssText = `
+      background:${C.accent};color:#fff;border:none;border-radius:7px;
+      padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;
+      transition:opacity .15s;white-space:nowrap;
+    `;
+    btn.onmouseenter = () => btn.style.opacity = '.8';
+    btn.onmouseleave = () => btn.style.opacity = '1';
+
+    const doLearn = () => {
+      const val = inp.value.trim();
+      if (!val) return;
+      const res = learnWord(currentKey, val);
+      if (res === 'ok') {
+        btn.textContent = '✅';
+        btn.style.background = C.green;
+        setTimeout(() => {
+          btn.textContent = 'Học';
+          btn.style.background = C.accent;
+          inp.value = '';
+          renderPopup(currentLastWord, getSuggestions(currentLastWord));
+        }, 600);
+      } else if (res === 'dup') {
+        inp.style.borderColor = C.accent;
+        btn.textContent = 'Đã có!';
+        setTimeout(() => { btn.textContent = 'Học'; inp.value = ''; inp.style.borderColor = C.divider; }, 900);
+      } else {
+        inp.style.borderColor = C.accent;
+        btn.textContent = 'Cần ≥2 tiếng!';
+        setTimeout(() => { btn.textContent = 'Học'; inp.style.borderColor = C.divider; }, 1000);
+      }
+    };
+
+    btn.onclick = doLearn;
+    inp.onkeydown = (e) => { if (e.key === 'Enter') doLearn(); e.stopPropagation(); };
+
+    row.appendChild(inp);
+    row.appendChild(btn);
+    learn.appendChild(lbl);
+    learn.appendChild(row);
+    popup.appendChild(learn);
+
+    // Footer
+    const ft = document.createElement('div');
+    ft.style.cssText = `padding:5px 14px 7px;color:${C.muted};font-size:10px;border-top:1px solid ${C.divider};display:flex;justify-content:space-between;`;
+    ft.innerHTML = `<span>Esc đóng &nbsp;·&nbsp; 🟢 từ bạn dạy</span><span style="color:${C.green}">🧠 ${countCustomWords()} từ đã học</span>`;
+    popup.appendChild(ft);
+  }
+
+  function showPopup(x, y, lastWord, result) {
+    renderPopup(lastWord, result);
+    popup.style.display = 'block';
+    requestAnimationFrame(() => {
+      const pw = popup.offsetWidth, ph = popup.offsetHeight;
+      let l = x + 10, t = y + 10;
+      if (l + pw > window.innerWidth - 10) l = x - pw - 10;
+      if (t + ph > window.innerHeight - 10) t = y - ph - 10;
+      popup.style.left = l + 'px';
+      popup.style.top = t + 'px';
+    });
+  }
+
+  function hidePopup() {
+    if (popup) popup.style.display = 'none';
+  }
+
+  // =============================================
+  // PANEL QUẢN LÝ (mở từ menu Tampermonkey)
+  // =============================================
+  function openManager() {
+    const totalBuiltin = Object.values(BUILTIN).reduce((a, b) => a + b.length, 0);
+    const totalCustom = countCustomWords();
+
+    const ov = document.createElement('div');
+    ov.style.cssText = `position:fixed;inset:0;z-index:2147483646;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;`;
+
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      background:${C.bg};border:1.5px solid ${C.border};border-radius:15px;
+      padding:26px 28px;min-width:340px;max-width:460px;width:90%;
+      font-family:'Segoe UI',Arial,sans-serif;color:${C.text};
+      box-shadow:0 20px 60px rgba(233,69,96,0.25);
+    `;
+    panel.innerHTML = `
+      <div style="font-size:17px;font-weight:800;color:${C.accent};margin-bottom:4px;">🔗 Nối Từ Helper — Từ điển</div>
+      <div style="color:${C.muted};font-size:12px;margin-bottom:20px;">
+        📚 Từ gốc: <b style="color:#fff">${totalBuiltin}</b>
+        &nbsp;·&nbsp;
+        🟢 Bạn đã dạy: <b style="color:${C.green}">${totalCustom}</b>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button id="__nm_export__" style="background:${C.accent};color:#fff;border:none;border-radius:9px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;">
+          ⬇️ Xuất từ đã học ra file JSON
+        </button>
+        <label id="__nm_importlbl__" style="background:#12122080;color:${C.text};border:2px dashed ${C.divider};border-radius:9px;padding:11px;font-size:13px;cursor:pointer;text-align:center;display:block;transition:border-color .15s;">
+          ⬆️ Nhập từ điển từ file JSON
+          <input type="file" id="__nm_import__" accept=".json" style="display:none">
+        </label>
+        <button id="__nm_reset__" style="background:transparent;color:${C.muted};border:1px solid ${C.divider};border-radius:9px;padding:9px;font-size:12px;cursor:pointer;font-family:inherit;">
+          🗑 Xóa toàn bộ từ đã học (${totalCustom} từ)
+        </button>
+      </div>
+      <div id="__nm_msg__" style="margin-top:12px;font-size:12px;min-height:18px;"></div>
+      <div style="margin-top:16px;text-align:right;">
+        <button id="__nm_close__" style="background:transparent;color:${C.muted};border:1px solid ${C.divider};border-radius:8px;padding:7px 18px;font-size:12px;cursor:pointer;font-family:inherit;">Đóng</button>
+      </div>
+    `;
+
+    ov.appendChild(panel);
+    document.body.appendChild(ov);
+
+    const msg = panel.querySelector('#__nm_msg__');
+    const lbl = panel.querySelector('#__nm_importlbl__');
+    lbl.onmouseenter = () => lbl.style.borderColor = C.accent;
+    lbl.onmouseleave = () => lbl.style.borderColor = C.divider;
+
+    panel.querySelector('#__nm_export__').onclick = () => {
+      exportDict();
+      msg.style.color = C.green;
+      msg.textContent = '✅ Đã xuất noitu-custom-dict.json!';
+    };
+
+    panel.querySelector('#__nm_import__').onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const count = importDict(ev.target.result);
+        if (count >= 0) {
+          msg.style.color = C.green;
+          msg.textContent = `✅ Nhập thành công ${count} từ mới!`;
+        } else {
+          msg.style.color = C.accent;
+          msg.textContent = '❌ File JSON không hợp lệ!';
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    panel.querySelector('#__nm_reset__').onclick = () => {
+      if (totalCustom === 0) { msg.style.color = C.muted; msg.textContent = 'Chưa có từ nào để xóa.'; return; }
+      if (confirm(`Xóa toàn bộ ${totalCustom} từ đã học? Không thể hoàn tác!`)) {
+        saveCustomDict({});
+        msg.style.color = C.accent;
+        msg.textContent = '🗑 Đã xóa toàn bộ từ đã học.';
+      }
+    };
+
+    panel.querySelector('#__nm_close__').onclick = () => ov.remove();
+    ov.onclick = (e) => { if (e.target === ov) ov.remove(); };
+  }
+
+  GM_registerMenuCommand('🔗 Nối Từ — Quản lý từ điển', openManager);
+
+  // =============================================
+  // SỰ KIỆN CHÍNH
+  // =============================================
+  document.addEventListener('mouseup', (e) => {
+    if (popup && popup.contains(e.target)) return;
+    setTimeout(() => {
+      const sel = window.getSelection().toString().trim();
+      if (!sel || sel.length < 2) { hidePopup(); return; }
+      const lastWord = getLastWord(sel);
+      if (!lastWord) { hidePopup(); return; }
+      showPopup(e.clientX, e.clientY, lastWord, getSuggestions(lastWord));
+    }, 50);
+  });
+
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hidePopup(); });
+  document.addEventListener('mousedown', (e) => { if (popup && !popup.contains(e.target)) hidePopup(); });
+
+})();
